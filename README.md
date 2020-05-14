@@ -19,7 +19,7 @@ https://obfuscator.io/
 ```javascript
 Error: Cannot find module '@babel/parser'
 ```
-请在系统环境变量中添加如下，npm\node_modules路径前面根据自己的相应修改：  
+请在系统环境变量中添加如下后重启编辑器，npm\node_modules路径前面根据自己的相应修改：  
 ```javascript
 变量名: NODE_PATH
 变量值1：C:\Users\Administrator\AppData\Roaming\npm\node_modules
