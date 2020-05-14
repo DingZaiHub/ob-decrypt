@@ -28,19 +28,19 @@ Error: Cannot find module '@babel/parser'
 
 ### 三、文件说明
 
-1. config.js：配置选项
+1. config.js：配置选项文件
 2. ob-decrypt.js：主要运行代码
-3. source.js：示例代码(未还原前)
+3. source.js：示例代码(还原前)
 4. code.js：示例代码(还原后)
 
-### 三、使用
+### 四、使用
 
 1. 将要还原的、<font color=red>未格式化前</font>的ob混淆代码复制到本地(一个大数组开头的)
 2. 修改config.js配置选项
 3. 执行ob-decrypt.js即可
 4. 如果有报错，可能暂不适配，等待更新，或可联系本人
 
-### 四、其它
+### 五、其它
 
 1. 默认输出缩进格式从2个空格调整为4个空格  
 打开 npm\node_modules\@babel\core\node_modules\@babel\generator\lib\index.js 文件  
@@ -53,7 +53,7 @@ indent: {
 }
 ```
 
-### 五、参考
+### 六、参考
 
 1. 夜幕论坛AST两部曲  
 AST一部曲：https://bbs.nightteam.cn/thread-417.htm  
