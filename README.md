@@ -47,7 +47,7 @@ indent: {
 ### 五、参考
 
 1. 夜幕论坛AST两部曲  
-AST一部曲：https://bbs.nightteam.cn/thread-417.htm(https://bbs.nightteam.cn/thread-417.htm)  
-AST二部曲：https://bbs.nightteam.cn/thread-423.htm(https://bbs.nightteam.cn/thread-423.htm)  
+AST一部曲：https://bbs.nightteam.cn/thread-417.htm  
+AST二部曲：https://bbs.nightteam.cn/thread-423.htm  
 
 2. “菜鸟学Python编程” 公众号AST系列
