@@ -26,11 +26,19 @@ Error: Cannot find module '@babel/parser'
 变量值2：C:\Users\Administrator\AppData\Roaming\npm\node_modules\@babel\core\node_modules
 ```
 
+### 三、文件说明
+
+1. config.js：配置选项
+2. ob-decrypt.js：主要运行代码
+3. source.js：示例代码(未还原前)
+4. code.js：示例代码(还原后)
+
 ### 三、使用
 
-1. 修改config.js配置选项
-2. 执行ob-decrypt.js即可
-3. 如果有报错，可能暂不适配，等待更新，或可联系本人
+1. 将要还原的、<font color=red>未格式化前</font>的ob混淆代码复制到本地(一个大数组开头的)
+2. 修改config.js配置选项
+3. 执行ob-decrypt.js即可
+4. 如果有报错，可能暂不适配，等待更新，或可联系本人
 
 ### 四、其它
 
