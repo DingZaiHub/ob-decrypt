@@ -30,6 +30,7 @@ Error: Cannot find module '@babel/parser'
 
 1. 修改config.js配置选项
 2. 执行ob-decrypt.js即可
+3. 如果有报错，可能暂不适配，等待更新，或可联系本人
 
 ### 四、其它
 
