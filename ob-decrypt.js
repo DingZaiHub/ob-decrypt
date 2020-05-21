@@ -13,10 +13,14 @@ const config = require('./config').config
 var ast = step1(config.file2decrypt)
 // 调用解密函数，返回解密后的ast对象
 ast = step2(ast)
-// 对象替换、自执行实参替换形参，返回替换后的ast对象
-ast = step3(ast)
-// 修改调用方式、十六进制文本还原、反控制流平坦化，写入还原后的代码
-step4(ast, config.file2generat, config.compact)
+if (!config.only_decrypt) {
+    // 如果仅还原解密函数为false
+    // 对象替换、自执行实参替换形参，返回替换后的ast对象
+    ast = step3(ast)
+    // 修改调用方式、十六进制文本还原、反控制流平坦化，写入还原后的代码
+    step4(ast, config.file2generat, config.compact)
+}
+
 
 function step1(file) {
     // 提取解密函数及解密函数名，返回去掉前3个节点的ast对象
@@ -47,11 +51,28 @@ function step1(file) {
 }
 function step2(ast) {
     // 调用解密函数，返回解密后的ast对象
+    console.log("还原解密函数中...")
     traverse(ast, {
         // 遍历ast的CallExpression类型，执行funToStr函数
         CallExpression: funToStr
     })
-    return ast
+    if (config.only_decrypt) {
+        // 仅还原解密函数
+        var { code } = generator(ast, {
+            // 是否格式化
+            compact: config.compact,
+            jsescOption: {
+                // 自动转义
+                minimal: true,
+            }
+        });
+        fs.writeFileSync(config.file2generat, code, {
+            encoding: "utf-8"
+        })
+        console.log("还原完成！")
+    } else {
+        return ast
+    }
     function funToStr(path) {
         var node = path.node;
         // 判断节点类型及函数名，不是则返回
@@ -65,7 +86,9 @@ function step2(ast) {
             // 调用本地的解密函数
             var value = decryptFunc(first_arg, second_arg);
             // 打印看结果
-            // console.log(node.callee.name + '("' + first_arg + '", "' + second_arg + '")', value);
+            if (config.debug) {
+                console.log("还原前:" + node.callee.name + '("' + first_arg + '", "' + second_arg + '")', "还原后:" + value);
+            }
             // 替换节点，因为计算出来的都是字符串，因此不用做判断
             path.replaceWith(t.StringLiteral(value));
         }
@@ -75,7 +98,9 @@ function step2(ast) {
             //调用本地的解密函数
             var value = decryptFunc(first_arg);
             //打印看结果
-            // console.log(node.callee.name + '("' + first_arg + '")', value);
+            if (config.debug) {
+                console.log("还原前:" + node.callee.name + '("' + first_arg + '")', "还原后:" + value);
+            }
             //替换节点，因为计算出来的都是字符串，因此不用做判断
             path.replaceWith(t.StringLiteral(value));
         }
@@ -89,6 +114,7 @@ function step3(ast) {
     })
     return ast
     function callToStr(path) {
+        // TODO BOSS直聘的未适配
         // 将对象进行替换
         var node = path.node;
     
@@ -231,6 +257,7 @@ function step4(ast, file2generat, compact) {
         delete path.node.extra; 
     }
     function replaceWhile(path) {
+        // TODO BOSS直聘的未适配
         // 反控制流平坦化    
         var node = path.node;   
         // 判断是否是目标节点   
