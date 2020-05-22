@@ -23,7 +23,7 @@ if (!config.only_decrypt) {
 
 
 function step1(file) {
-    // 提取解密函数及解密函数名，返回去掉前3个节点的ast对象
+    // 提取前3个节点的源代码，返回去掉前3个节点后的ast对象
     var jscode = fs.readFileSync(file, {
         encoding: "utf-8"
     });
@@ -39,22 +39,25 @@ function step1(file) {
         // 禁止自动格式化(针对反调试)
         compact: true
     })
-    // 利用eval将前3个节点的代码导入到环境中
-    eval(code)
-    // 解密函数名(str)
+    // 将前3个节点的源代码赋值到全局变量中，供第二步使用
+    global_code = code
+    // 解密函数名(str)，供第二步使用
     decryptStr = decrypt_code[2].declarations[0].id.name
-    // 解密函数(func)
-    decryptFunc = eval(decryptStr)
     // 将剩下的节点替换进ast供后面还原
     ast.program.body = rest_code
     return ast
 }
 function step2(ast) {
-    // 调用解密函数，返回解密后的ast对象
+    // 调用解密函数、十六进制文本还原
+    // 返回解密后的ast对象或写入还原后的代码
     console.log("还原解密函数中...")
+    // 利用eval将前3个节点的代码导入到环境中
+    eval(global_code)
     traverse(ast, {
         // 遍历ast的CallExpression类型，执行funToStr函数
-        CallExpression: funToStr
+        CallExpression: funToStr,
+        StringLiteral: delExtra,
+        NumericLiteral: delExtra,
     })
     if (config.only_decrypt) {
         // 仅还原解密函数
@@ -78,32 +81,17 @@ function step2(ast) {
         // 判断节点类型及函数名，不是则返回
         if (!t.isIdentifier(node.callee, {name: decryptStr})) 
             return;
-        // 取调用解密函数的实参值
-        if (node.arguments.length === 2) {
-            // 如果有两个实参
-            var first_arg  = node.arguments[0].value;
-            var second_arg = node.arguments[1].value;
-            // 调用本地的解密函数
-            var value = decryptFunc(first_arg, second_arg);
-            // 打印看结果
-            if (config.debug) {
-                console.log("还原前:" + node.callee.name + '("' + first_arg + '", "' + second_arg + '")', "还原后:" + value);
-            }
-            // 替换节点，因为计算出来的都是字符串，因此不用做判断
-            path.replaceWith(t.StringLiteral(value));
+        // 调用解密函数
+        let value = eval(path.toString())
+        if (config.debug) {
+            // 是否打印
+            console.log("还原前:" + path.toString(), "还原后:" + value);
         }
-        if (node.arguments.length === 1) {
-            // 如果只有一个实参
-            var first_arg  = node.arguments[0].value;
-            //调用本地的解密函数
-            var value = decryptFunc(first_arg);
-            //打印看结果
-            if (config.debug) {
-                console.log("还原前:" + node.callee.name + '("' + first_arg + '")', "还原后:" + value);
-            }
-            //替换节点，因为计算出来的都是字符串，因此不用做判断
-            path.replaceWith(t.StringLiteral(value));
-        }
+        path.replaceWith(t.valueToNode(value));
+    }
+    function delExtra(path) {     
+        // 十六进制文本还原
+        delete path.node.extra; 
     }
 }
 function step3(ast) {
@@ -114,7 +102,6 @@ function step3(ast) {
     })
     return ast
     function callToStr(path) {
-        // TODO BOSS直聘的未适配
         // 将对象进行替换
         var node = path.node;
     
@@ -222,12 +209,10 @@ function step3(ast) {
     }
 }
 function step4(ast, file2generat, compact) {
-    // 修改调用方式、十六进制文本还原、反控制流平坦化，写入还原后的代码
+    // 修改调用方式、反控制流平坦化，写入还原后的代码
     traverse(ast, {
         MemberExpression: formatMember,
         WhileStatement: replaceWhile,
-        StringLiteral: delExtra,
-        NumericLiteral: delExtra,
         // ExpressionStatement: delConvParam
     });
     var { code } = generator(ast, {
@@ -252,12 +237,7 @@ function step4(ast, file2generat, compact) {
         curNode.property = t.identifier(curNode.property.value);
         curNode.computed = false;
     }
-    function delExtra(path) {     
-        // 十六进制文本还原
-        delete path.node.extra; 
-    }
     function replaceWhile(path) {
-        // TODO BOSS直聘的未适配
         // 反控制流平坦化    
         var node = path.node;   
         // 判断是否是目标节点   
