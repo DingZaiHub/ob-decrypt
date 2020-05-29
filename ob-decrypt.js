@@ -11,19 +11,19 @@ const config = require('./config').config
 
 // 提取解密函数及解密函数名，返回去掉前3个节点的ast对象
 var ast = step1(config.file2decrypt)
-// 调用解密函数，返回解密后的ast对象
+// 调用解密函数、十六进制文本还原，返回解密后的ast对象
 ast = step2(ast)
 if (!config.only_decrypt) {
     // 如果仅还原解密函数为false
-    // 对象替换、自执行实参替换形参，返回替换后的ast对象
+    // 将拆分的对象重新合并、对象替换、自执行实参替换形参，返回替换后的ast对象
     ast = step3(ast)
-    // 修改调用方式、十六进制文本还原、反控制流平坦化，写入还原后的代码
+    // 反控制流平坦化、修改调用方式，写入还原后的代码
     step4(ast, config.file2generat, config.compact)
 }
 
 
 function step1(file) {
-    // 提取前3个节点的源代码，返回去掉前3个节点后的ast对象
+    // 提取前3个节点的源代码及单独提取出atob函数，返回去掉前3个节点后的ast对象
     var jscode = fs.readFileSync(file, {
         encoding: "utf-8"
     });
@@ -33,6 +33,35 @@ function step1(file) {
     var decrypt_code = ast.program.body.slice(0, 3)
     // 剩下的节点
     var rest_code = ast.program.body.slice(3)
+    
+    // 提取atob函数
+    var flag = true
+    const visitor = {
+        // 提取出atob代码，后面可能会做判断
+        "ExpressionStatement"(path) {
+            path.traverse({
+                "StringLiteral"(_path) {
+                    delete _path.node.extra
+                }
+            })
+            var code = path.toString()
+            if (flag && code.indexOf("atob") != -1) {
+                atob_node = path.node
+                flag = false
+            }
+        }
+    }
+    traverse(ast, visitor)
+    ast.program.body = [atob_node]
+    var {code} = generator(ast, {
+        jsescOption: {
+            // 自动转义
+            minimal: true,
+        }
+    })
+    const comment = "// atob函数，下方可能会判断其是否存在"
+    atob_code = comment + "\n!" + code + "\n"
+
     // 将前3个节点替换进ast
     ast.program.body = decrypt_code
     var {code} = generator(ast, {
@@ -54,7 +83,6 @@ function step2(ast) {
     // 利用eval将前3个节点的代码导入到环境中
     eval(global_code)
     traverse(ast, {
-        // 遍历ast的CallExpression类型，执行funToStr函数
         CallExpression: funToStr,
         StringLiteral: delExtra,
         NumericLiteral: delExtra,
@@ -69,6 +97,7 @@ function step2(ast) {
                 minimal: true,
             }
         });
+        code = (atob_code + code).replace(/\n\n/g, "\n")
         fs.writeFileSync(config.file2generat, code, {
             encoding: "utf-8"
         })
@@ -85,7 +114,7 @@ function step2(ast) {
         let value = eval(path.toString())
         if (config.debug) {
             // 是否打印
-            console.log("还原前:" + path.toString(), "还原后:" + value);
+            console.log("还原前：" + path.toString(), "还原后：" + value);
         }
         path.replaceWith(t.valueToNode(value));
     }
@@ -95,12 +124,74 @@ function step2(ast) {
     }
 }
 function step3(ast) {
-    // 对象替换、自执行实参替换形参，返回替换后的ast对象
+    // 去除逗号表达式、将拆分的对象重新合并、对象替换、自执行实参替换形参，返回替换后的ast对象
     traverse(ast, {
-        VariableDeclarator: callToStr,
-        ExpressionStatement: convParam
-    })
+        ExpressionStatement: remove_commma,
+        VariableDeclarator: {
+            exit: [merge_obj]
+        },
+    });
+    traverse(ast, {
+        VariableDeclarator: {
+            exit: [callToStr]
+        },
+        ExpressionStatement: convParam,
+    });
     return ast
+    function remove_commma(path) {
+        // 去除逗号表达式
+        let {expression} = path.node
+        if (!t.isSequenceExpression(expression))
+            return;
+        let body = []
+        expression.expressions.forEach(
+            express => {
+                body.push(t.expressionStatement(express))
+            }
+        )
+        path.replaceInline(body)
+    }
+    function merge_obj(path) {
+        // 将拆分的对象重新合并
+        const {id, init} = path.node;
+        if (!t.isObjectExpression(init))
+            return;
+
+        let name = id.name;
+        let properties = init.properties;
+
+        let scope = path.scope;
+        let binding = scope.getBinding(name);
+        if (!binding || binding.constantViolations.length > 0) {
+            return;
+        }
+        let paths = binding.referencePaths;
+        paths.map(function(refer_path) {
+            let bindpath = refer_path.parentPath; 
+            if (!t.isVariableDeclarator(bindpath.node)) return;
+            let bindname = bindpath.node.id.name;
+            bindpath.scope.rename(bindname, name, bindpath.scope.block);
+            bindpath.remove();
+        });
+        scope.traverse(scope.block, {
+            AssignmentExpression: function(_path) {
+                const left = _path.get("left");
+                const right = _path.get("right");
+                if (!left.isMemberExpression())
+                    return;
+                const object = left.get("object");
+                const property = left.get("property");
+                if (object.isIdentifier({name: name}) && property.isStringLiteral() && _path.scope == scope) {
+                    properties.push(t.ObjectProperty(t.valueToNode(property.node.value), right.node));
+                    _path.remove();
+                }
+                if (object.isIdentifier({name: name}) && property.isIdentifier() && _path.scope == scope) {
+                    properties.push(t.ObjectProperty(t.valueToNode(property.node.name), right.node));
+                    _path.remove();
+                }
+            }
+        })
+    }
     function callToStr(path) {
         // 将对象进行替换
         var node = path.node;
@@ -108,16 +199,19 @@ function step3(ast) {
         if (!t.isObjectExpression(node.init))
             return;
     
+        // 获取对象内所有属性
         var objPropertiesList = node.init.properties;
     
         if (objPropertiesList.length==0)
             return;
-    
+
+        // 对象名
         var objName = node.id.name;
-    
+        // 是否可删除该对象：发生替换时可删除，否则不删除
+        var del_flag = false
         objPropertiesList.forEach(prop => {
             var key = prop.key.value;
-            if(!t.isStringLiteral(prop.value))
+            if(t.isFunctionExpression(prop.value))
             {
                 var retStmt = prop.value.body.body[0];
     
@@ -131,8 +225,12 @@ function step3(ast) {
                         var _node = _path.node.callee;
                         if (!t.isIdentifier(_node.object) || _node.object.name !== objName)
                             return;
-                        if (!t.isStringLiteral(_node.property) || _node.property.value != key)
+                        if (!(t.isStringLiteral(_node.property) || t.isIdentifier(_node.property)))
                             return;
+                        if (!(_node.property.value == key || _node.property.name == key))
+                            return;
+                        // if (!t.isStringLiteral(_node.property) || _node.property.value != key)
+                        //     return;
     
                         var args = _path.node.arguments;
     
@@ -151,10 +249,11 @@ function step3(ast) {
                         {
                             _path.replaceWith(t.callExpression(args[0], args.slice(1)))
                         }
+                        del_flag = true;
                     }
                 })
             }
-            else{
+            else if (t.isStringLiteral(prop.value)){
                 var retStmt = prop.value.value;
     
                 // 该path的最近父节点
@@ -164,18 +263,23 @@ function step3(ast) {
                         var _node = _path.node;
                         if (!t.isIdentifier(_node.object) || _node.object.name !== objName)
                             return;
-                        if (!t.isStringLiteral(_node.property) || _node.property.value != key)
+                        if (!(t.isStringLiteral(_node.property) || t.isIdentifier(_node.property)))
                             return;
+                        if (!(_node.property.value == key || _node.property.name == key))
+                            return;
+                        // if (!t.isStringLiteral(_node.property) || _node.property.value != key)
+                        //     return;
     
                         _path.replaceWith(t.stringLiteral(retStmt))
+                        del_flag = true;
                     }
                 })
-    
             }
-    
         });
-    
-        path.remove();
+        if (del_flag) {
+            // 如果发生替换，则删除该对象
+            path.remove();
+        } 
     }
     function convParam(path) {
         // 自执行函数实参替换形参
@@ -209,12 +313,28 @@ function step3(ast) {
     }
 }
 function step4(ast, file2generat, compact) {
-    // 修改调用方式、反控制流平坦化，写入还原后的代码
+    // 反控制流平坦化、修改调用方式，写入还原后的代码
     traverse(ast, {
+        WhileStatement: {
+            exit: [replaceWhile]
+        },
         MemberExpression: formatMember,
-        WhileStatement: replaceWhile,
         // ExpressionStatement: delConvParam
     });
+    const visitor = {
+        // 常量计算
+        "UnaryExpression|BinaryExpression|ConditionalExpression|SequenceExpression|LogicalExpression|CallExpression"(path) {
+            if (path.type == "UnaryExpression") {
+                const {operator, argument} = path.node;
+                if (operator == "-" && t.isLiteral(argument)) {
+                    return;
+                }
+            }
+            const {confident, value} = path.evaluate();
+            confident && path.replaceWith(t.valueToNode(value));
+        }
+    }
+    traverse(ast ,visitor);
     var { code } = generator(ast, {
         // 是否格式化
         compact: compact,
@@ -223,20 +343,11 @@ function step4(ast, file2generat, compact) {
             minimal: true,
         }
     });
+    code = (atob_code + code).replace(/\n\n/g, "\n")
     fs.writeFileSync(file2generat, code, {
         encoding: "utf-8"
     })
     console.log("还原完成！")
-    function formatMember(path) {
-        // 将_0x19882c['removeCookie']['toString']()改成_0x19882c.removeCookie.toString()
-        var curNode = path.node;
-        if(!t.isStringLiteral(curNode.property))
-            return;
-        if(curNode.computed === undefined || !curNode.computed === true)
-            return;
-        curNode.property = t.identifier(curNode.property.value);
-        curNode.computed = false;
-    }
     function replaceWhile(path) {
         // 反控制流平坦化    
         var node = path.node;   
@@ -251,36 +362,53 @@ function step4(ast, file2generat, compact) {
             return;               
         var body = node.body.body;     
         if (!t.isSwitchStatement(body[0]) || !t.isMemberExpression(body[0].discriminant) || !t.isBreakStatement(body[1]))         
-            return;           
+            return;     
+            
+        // 获取数组名及自增变量名
         var swithStm = body[0];     
-        var arrName = swithStm.discriminant.object.name;          
-        // 找到path节点的前一个兄弟节点，即_0x289a30所在的节点，然后获取_0x289a30数组   
-        // console.log(path.key)  
-        var prevSiblingPath = path.getSibling(0);   
-        // console.log(prevSiblingPath.toString())
-        var arrNode = prevSiblingPath.node.declarations.filter(declarator => declarator.id.name == arrName)[0];  
-        // console.log(arrNode) 
-        var idxArr = arrNode.init.callee.object.value.split('|');        
+        var arrName = swithStm.discriminant.object.name;    
+        var argName = swithStm.discriminant.property.argument.name
+        let arr = [];  
+
+        // 找到path节点的前一个兄弟节点，即数组所在的节点，然后获取数组  
+        let all_presibling = path.getAllPrevSiblings();
+        // console.log(all_presibling)
+        all_presibling.forEach(pre_path => {
+            const {declarations} = pre_path.node;
+            let {id, init} = declarations[0]
+            if (arrName == id.name) {
+                // 数组节点
+                arr = init.callee.object.value.split('|');
+                pre_path.remove()
+            }
+            if (argName == id.name) {
+                // 自增变量节点
+                pre_path.remove()
+            }
+        })
+                
         // SwitchCase节点集合     
-        var caseList = swithStm.cases;     
+        var caseList = swithStm.cases;  
+        // 存放按正确顺序取出的case节点   
         var resultBody = [];           
-        idxArr.map(targetIdx => {     
+        arr.map(targetIdx => {     
             var targetBody = caseList[targetIdx].consequent;     
             // 删除ContinueStatement块(continue语句)     
             if (t.isContinueStatement(targetBody[targetBody.length - 1]))         
                 targetBody.pop();     
             resultBody = resultBody.concat(targetBody)     
         });
-        // 多个节点替换一个节点的话使用replaceWithMultiple方法
-        path.replaceWithMultiple(resultBody);
-        // 删除_0x289a30所在的节点
-        if (path.key == 1) {
-            prevSiblingPath.remove();
-        } else {
-            prevSiblingPath.remove();
-            var other_prevSiblingPath = path.getPrevSibling();
-            other_prevSiblingPath.remove()
-        }
+        path.replaceInline(resultBody);
+    }
+    function formatMember(path) {
+        // 将_0x19882c['removeCookie']['toString']()改成_0x19882c.removeCookie.toString()
+        var curNode = path.node;
+        if(!t.isStringLiteral(curNode.property))
+            return;
+        if(curNode.computed === undefined || !curNode.computed === true)
+            return;
+        curNode.property = t.identifier(curNode.property.value);
+        curNode.computed = false;
     }
     function delConvParam(path) {   
         // 替换空参数的自执行方法为顺序语句   
