@@ -10,7 +10,28 @@
 
 ### 一、ob混淆网站
 
-https://obfuscator.io/
+https://obfuscator.io/  
+ob混淆特征：
+```javascript
+// 开头一个大数组
+var _0xa441 = ['\x49\x63\x4b\x72\x77\x70\x2f\x44\x6c\x67\x3d\x3d', ···]
+// 自执行函数对数组进行位移
+(function (_0x56a234, _0xa44115) {
+    var _0x532345 = function (_0x549d7c) {
+        while (--_0x549d7c) {
+            _0x56a234['push'](_0x56a234['shift']());
+        }
+    };
+    _0x532345(++_0xa44115);
+}(_0xa441, 0x1d0));
+// 解密函数
+var _0x5323 = function (_0x56a234, _0xa44115) {
+    // 里面有段自执行函数生成atob函数
+    ······
+}
+// 下方多处调用解密函数，如
+var _0x239123 = _0x5323('\x30\x78\x32\x30', '\x70\x59\x48\x73');
+```
 
 ### 二、依赖
 
@@ -36,10 +57,11 @@ Windows系统请在系统环境变量中添加如下后重启编辑器，npm\nod
 
 ### 四、使用
 
-1. 将要还原的、**未格式化前**的ob混淆代码复制到本地(一个大数组开头的)
+1. 将要还原的、**未格式化前**的ob混淆代码复制到本地
 2. 修改config.js配置选项
 3. 执行ob-decrypt.js即可
 4. 如果有报错，可能暂不适配，等待更新。或将配置选项设置为仅还原解密函数。或可联系本人
+5. 本工具同样可以解非ob混淆代码。将step1、step2去掉后，按需使用代码下方的traverse即可。
 
 ### 五、其它
 
@@ -53,6 +75,13 @@ indent: {
     base: 0
 }
 ```
+2. 常量计算添加计算parseInt类型  
+打开 npm\node_modules\@babel\traverse\lib\path\evaluation.js 文件  
+将其中的VALID_CALLEES修改如下：
+```javascript
+const VALID_CALLEES = ["String", "Number", "Math","parseInt"];
+```
+
 
 ### 六、参考
 
@@ -61,3 +90,5 @@ AST一部曲：https://bbs.nightteam.cn/thread-417.htm
 AST二部曲：https://bbs.nightteam.cn/thread-423.htm  
 
 2. “菜鸟学Python编程” 公众号AST系列
+
+3. “AST入门与实战” 知识星球
