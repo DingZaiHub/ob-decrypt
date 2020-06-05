@@ -1,4 +1,4 @@
-// atob函数，下方可能会判断其是否存在
+// atob函数，后面可能会判断其是否存在，勿删！
 !(function () {
     var _0x421970 = function () {
         var _0x156f0f;
@@ -11,11 +11,11 @@
     };
     var _0x2fdc10 = _0x421970();
     var _0x5b0441 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-    _0x2fdc10["atob"] || (_0x2fdc10["atob"] = function (_0x32e3d3) {
-        var _0x37f0d8 = String(_0x32e3d3)["replace"](/=+$/, "");
+    _0x2fdc10.atob || (_0x2fdc10.atob = function (_0x32e3d3) {
+        var _0x37f0d8 = String(_0x32e3d3).replace(/=+$/, "");
         var _0x1dc53f = "";
-        for (var _0x3cf0be = 0x0, _0x42233f, _0x11d839, _0x1a56d1 = 0x0; _0x11d839 = _0x37f0d8["charAt"](_0x1a56d1++); ~_0x11d839 && (_0x42233f = _0x3cf0be % 0x4 ? _0x42233f * 0x40 + _0x11d839 : _0x11d839, _0x3cf0be++ % 0x4) ? _0x1dc53f += String["fromCharCode"](0xff & _0x42233f >> (-0x2 * _0x3cf0be & 0x6)) : 0x0) {
-            _0x11d839 = _0x5b0441["indexOf"](_0x11d839);
+        for (var _0x3cf0be = 0x0, _0x42233f, _0x11d839, _0x1a56d1 = 0x0; _0x11d839 = _0x37f0d8.charAt(_0x1a56d1++); ~_0x11d839 && (_0x42233f = _0x3cf0be % 0x4 ? _0x42233f * 0x40 + _0x11d839 : _0x11d839, _0x3cf0be++ % 0x4) ? _0x1dc53f += String.fromCharCode(0xff & _0x42233f >> (-0x2 * _0x3cf0be & 0x6)) : 0x0) {
+            _0x11d839 = _0x5b0441.indexOf(_0x11d839);
         }
         return _0x1dc53f;
     });
@@ -24,13 +24,17 @@ function hi() {
     var _0x55e58f = function () {
         var _0x5d69d2 = true;
         return function (_0x309259, _0x4ce86b) {
-            var _0x46e4b5 = _0x5d69d2 ? function () {
-                if (_0x4ce86b) {
-                    var _0x20e226 = _0x4ce86b.apply(_0x309259, arguments);
-                    _0x4ce86b = null;
-                    return _0x20e226;
-                }
-            } : function () {};
+            if (_0x5d69d2) {
+                var _0x46e4b5 = function () {
+                    if (_0x4ce86b) {
+                        var _0x20e226 = _0x4ce86b.apply(_0x309259, arguments);
+                        _0x4ce86b = null;
+                        return _0x20e226;
+                    }
+                };
+            } else {
+                var _0x46e4b5 = function () {};
+            }
             _0x5d69d2 = false;
             return _0x46e4b5;
         };
@@ -50,13 +54,17 @@ function hi() {
     var _0x2cba31 = function () {
         var _0x105a32 = true;
         return function (_0xc1eb21, _0x59ff7c) {
-            var _0x3ff6e2 = _0x105a32 ? function () {
-                if (_0x59ff7c) {
-                    var _0x4e0551 = _0x59ff7c.apply(_0xc1eb21, arguments);
-                    _0x59ff7c = null;
-                    return _0x4e0551;
-                }
-            } : function () {};
+            if (_0x105a32) {
+                var _0x3ff6e2 = function () {
+                    if (_0x59ff7c) {
+                        var _0x4e0551 = _0x59ff7c.apply(_0xc1eb21, arguments);
+                        _0x59ff7c = null;
+                        return _0x4e0551;
+                    }
+                };
+            } else {
+                var _0x3ff6e2 = function () {};
+            }
             _0x105a32 = false;
             return _0x3ff6e2;
         };
