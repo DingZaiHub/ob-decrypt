@@ -66,7 +66,7 @@ Windows系统请在系统环境变量中添加如下后重启编辑器，npm\nod
 ### 五、其它
 
 1. 默认输出缩进格式从2个空格调整为4个空格  
-打开 npm\node_modules\@babel\core\node_modules\@babel\generator\lib\index.js 文件  
+打开 npm\node_modules\\@babel\core\node_modules\\@babel\generator\lib\index.js 文件  
 将其中的indent修改如下：
 ```javascript
 indent: {
@@ -76,7 +76,7 @@ indent: {
 }
 ```
 2. 常量计算添加计算parseInt类型  
-打开 npm\node_modules\@babel\traverse\lib\path\evaluation.js 文件  
+打开 npm\node_modules\\@babel\core\node_modules\\@babel\traverse\lib\path\evaluation.js 文件  
 将其中的VALID_CALLEES修改如下：
 ```javascript
 const VALID_CALLEES = ["String", "Number", "Math","parseInt"];
