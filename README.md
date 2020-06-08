@@ -54,7 +54,7 @@ Windows系统请在系统环境变量中添加如下后重启编辑器，npm\nod
 2. ob-decrypt.js：主要运行代码
 3. source.js：示例代码(还原前)
 4. code.js：示例代码(还原后)
-5. introduction.md：各功能说明文档
+5. introduction.md：[各功能说明文档](https://github.com/DingZaiHub/ob-decrypt/blob/master/introduction.md)
 
 ### 四、使用
 
