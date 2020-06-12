@@ -93,3 +93,8 @@ AST二部曲：https://bbs.nightteam.cn/thread-423.htm
 2. “菜鸟学Python编程” 公众号AST系列
 
 3. “AST入门与实战” 知识星球
+
+### 七、赞赏
+
+如果觉得本工具对你有用，谢谢赞赏~
+![](https://imgkr.cn-bj.ufileos.com/d418431a-732e-4640-b755-0b80fedb8550.png)
