@@ -198,8 +198,7 @@ var c = null;
 慎用！可能涉及作用域的问题，或其它逻辑错误。
 ```javascript
 traverse(ast, {
-    "UnaryExpression|BinaryExpression|ConditionalExpression": eval_constant,
-    "SequenceExpression|LogicalExpression|CallExpression": eval_constant
+    "UnaryExpression|BinaryExpression|ConditionalExpression|CallExpression": eval_constant,
 });
 ```
 还原前：
