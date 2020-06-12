@@ -40,7 +40,7 @@ var _0x239123 = _0x5323('\x30\x78\x32\x30', '\x70\x59\x48\x73');
 ```javascript
 Error: Cannot find module '@babel/parser'
 ```
-Windows系统请在系统环境变量中添加如下后重启编辑器，npm\node_modules路径前面根据自己的相应修改：  
+Windows系统请在系统环境变量中添加如下后重启编辑器或电脑，npm\node_modules路径前面根据自己的相应修改：  
 其它系统请自行搜索更改  
 ```javascript
 变量名: NODE_PATH
