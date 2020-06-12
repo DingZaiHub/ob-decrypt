@@ -24,19 +24,18 @@ if (!config.only_decrypt) {
     traverse(ast, {ExpressionStatement: convParam,});           // 自执行实参替换形参
     traverse(ast, {WhileStatement: {exit: [replaceWhile]},});   // 反控制流平坦化
     traverse(ast, {ConditionalExpression: trans_condition,});   // 把 a = m?11:22; 转成 m ? a = 11 : a = 22;
-    traverse(ast, {ExpressionStatement: ConditionToIf,});       // 三元表达式转if-else
-    traverse(ast, {VariableDeclarator: conditionVarToIf,});     // var定义的三元表达式转if-else
     traverse(ast, {ExpressionStatement: remove_comma,});        // 去除逗号表达式
-    traverse(ast, {VariableDeclaration: remove_var_comma,});    // 去除var定义的逗号表达式
+    // traverse(ast, {VariableDeclaration: remove_var_comma,});    // 去除var定义的逗号表达式
+    traverse(ast, {VariableDeclarator: conditionVarToIf,});     // var定义的三元表达式转if-else
+    traverse(ast, {ExpressionStatement: ConditionToIf,});       // 三元表达式转if-else
 
     if (config.eval) {
         traverse(ast, {                                         // 常量计算，慎用！
-            "UnaryExpression|BinaryExpression|ConditionalExpression": eval_constant,
-            "SequenceExpression|LogicalExpression|CallExpression": eval_constant
+            "UnaryExpression|BinaryExpression|ConditionalExpression|CallExpression": eval_constant,
         });
     }
     if (config.trans) {
-        traverse(ast, {MemberExpression: formatMember,})        // 修改调用方式，如aa['bb']['v']()转aa.bb.v()，慎用！
+        traverse(ast, {MemberExpression: formatMember,});       // 修改调用方式，如aa['bb']['v']()转aa.bb.v()，慎用！
     }
     
     // traverse(ast, {ExpressionStatement: delConvParam,})      // 替换空参数的自执行方法为顺序语句，慎用！
@@ -64,6 +63,17 @@ function step1(ast) {
     // 剩下的节点
     var rest_code = ast.program.body.slice(3)
     
+    // 将前3个节点替换进ast
+    ast.program.body = decrypt_code
+    var {code} = generator(ast, {
+        // 禁止自动格式化(针对反调试)
+        compact: true
+    })
+    // 将前3个节点的源代码赋值到全局变量中，供第二步使用
+    global_code = code
+    // 解密函数名(str)，供第二步使用
+    decryptStr = decrypt_code[2].declarations[0].id.name
+
     // 提取atob函数，后面可能会做判断
     var flag = true
     const visitor = {
@@ -92,16 +102,6 @@ function step1(ast) {
     const comment = "// atob函数，后面可能会判断其是否存在，勿删！"
     atob_code = comment + "\n!" + code + "\n"
 
-    // 将前3个节点替换进ast
-    ast.program.body = decrypt_code
-    var {code} = generator(ast, {
-        // 禁止自动格式化(针对反调试)
-        compact: true
-    })
-    // 将前3个节点的源代码赋值到全局变量中，供第二步使用
-    global_code = code
-    // 解密函数名(str)，供第二步使用
-    decryptStr = decrypt_code[2].declarations[0].id.name
     // 将剩下的节点替换进ast供后面还原
     ast.program.body = rest_code
     return ast
@@ -397,6 +397,8 @@ function conditionVarToIf(path) {
     const ParentNode = path.parent;
     if (!t.isVariableDeclaration(ParentNode)) return;
 
+    if (t.isForStatement(ParentPath.parentPath)) return;
+
     let kind = ParentNode.kind;
     let {test, consequent, alternate} = init;
     ParentPath.replaceWith(t.ifStatement(
@@ -455,8 +457,8 @@ function eval_constant(path) {
         }
     }
     const {confident, value} = path.evaluate();
-    // 无限计算则退出，如1/0
-    if (value == Infinity)
+    // 无限计算则退出，如1/0与-(1/0)
+    if (value == Infinity || value == -Infinity)
         return;
     confident && path.replaceWith(t.valueToNode(value));
 }
