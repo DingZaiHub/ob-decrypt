@@ -97,4 +97,5 @@ AST二部曲：https://bbs.nightteam.cn/thread-423.htm
 ### 七、赞赏
 
 如果觉得本工具对你有用，谢谢赞赏~
-![](https://imgkr.cn-bj.ufileos.com/d418431a-732e-4640-b755-0b80fedb8550.png)
+
+![](https://imgkr.cn-bj.ufileos.com/bf55aae1-f12b-4a63-9b57-94eaf2ff9798.png)
