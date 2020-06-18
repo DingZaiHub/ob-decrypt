@@ -5,10 +5,10 @@
     - [3. 自执行实参替换形参](#3-自执行实参替换形参)
     - [4. 反控制流平坦化](#4-反控制流平坦化)
     - [5. 赋值语句的三元表达式类型转换](#5-赋值语句的三元表达式类型转换)
-    - [6. 三元表达式转if-else](#6-三元表达式转if-else)
-    - [7. var定义的三元表达式转if-else](#7-var定义的三元表达式转if-else)
-    - [8. 去除逗号表达式](#8-去除逗号表达式)
-    - [9. 去除var定义的逗号表达式](#9-去除var定义的逗号表达式)
+    - [6. 去除逗号表达式](#6-去除逗号表达式)
+    - [7. 三元表达式转if-else](#7-三元表达式转if-else)
+    - [8. 去除var定义的逗号表达式](#8-去除var定义的逗号表达式)
+    - [9. var定义的三元表达式转if-else](#9-var定义的三元表达式转if-else)
     - [10. 常量计算](#10-常量计算)
     - [11. 修改调用方式](#11-修改调用方式)
     - [12. 替换空参数的自执行函数为顺序语句](#12-替换空参数的自执行函数为顺序语句)
@@ -134,7 +134,21 @@ a = m ? 11 : 22;
 ```javascript
 m ? a = 11 : a = 22;
 ```
-### 6. 三元表达式转if-else
+### 6. 去除逗号表达式
+```javascript
+traverse(ast, {ExpressionStatement: remove_comma,});
+```
+还原前：
+```javascript
+a = 1, b = ddd(), c = null;
+```
+还原后:
+```javascript
+a = 1;
+b = ddd();
+c = null;
+```
+### 7. 三元表达式转if-else
 ```javascript
 traverse(ast, {ExpressionStatement: ConditionToIf,});
 ```
@@ -150,7 +164,33 @@ if (m) {
     a = 22;
 }
 ```
-### 7. var定义的三元表达式转if-else
+### 8. 去除var定义的逗号表达式
+```javascript
+traverse(ast, {VariableDeclaration: remove_var_comma,});
+```
+还原前：
+```javascript
+var a = 1, b = ddd(), c = null;
+```
+还原后:
+```javascript
+var a = 1;
+var b = ddd();
+var c = null;
+```
+对于`var a,b,c,d,e,f,g...`这种代码，还原后可能就比较丑...变成如下：
+```javascript
+var a;
+var b;
+var c;
+var d;
+var e;
+var f;
+var g;
+······
+```
+### 9. var定义的三元表达式转if-else
+这一项必须配合【8】去除var定义的逗号表达式使用
 ```javascript
 traverse(ast, {VariableDeclarator: conditionVarToIf,});
 ```
@@ -165,34 +205,6 @@ if (m) {
 } else {
     var a = 22;
 }
-```
-### 8. 去除逗号表达式
-```javascript
-traverse(ast, {ExpressionStatement: remove_comma,});
-```
-还原前：
-```javascript
-a = 1, b = ddd(), c = null;
-```
-还原后:
-```javascript
-a = 1;
-b = ddd();
-c = null;
-```
-### 9. 去除var定义的逗号表达式
-```javascript
-traverse(ast, {VariableDeclaration: remove_var_comma,});
-```
-还原前：
-```javascript
-var a = 1, b = ddd(), c = null;
-```
-还原后:
-```javascript
-var a = 1;
-var b = ddd();
-var c = null;
 ```
 ### 10. 常量计算
 慎用！可能涉及作用域的问题，或其它逻辑错误。
