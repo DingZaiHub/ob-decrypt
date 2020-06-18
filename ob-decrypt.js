@@ -25,8 +25,10 @@ if (!config.only_decrypt) {
     traverse(ast, {WhileStatement: {exit: [replaceWhile]},});   // 反控制流平坦化
     traverse(ast, {ConditionalExpression: trans_condition,});   // 把 a = m?11:22; 转成 m ? a = 11 : a = 22;
     traverse(ast, {ExpressionStatement: remove_comma,});        // 去除逗号表达式
-    // traverse(ast, {VariableDeclaration: remove_var_comma,});    // 去除var定义的逗号表达式
-    traverse(ast, {VariableDeclarator: conditionVarToIf,});     // var定义的三元表达式转if-else
+    if (config.trans_var) {
+        traverse(ast, {VariableDeclaration: remove_var_comma,});    // 去除var定义的逗号表达式
+        traverse(ast, {VariableDeclarator: conditionVarToIf,});     // var定义的三元表达式转if-else
+    }
     traverse(ast, {ExpressionStatement: ConditionToIf,});       // 三元表达式转if-else
 
     if (config.eval) {
