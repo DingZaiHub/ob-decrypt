@@ -210,8 +210,10 @@ function callToStr(path) {
     // 对象名
     var objName = node.id.name;
     // 是否可删除该对象：发生替换时可删除，否则不删除
-    var del_flag = false
-
+    // var del_flag = false
+    // 定义一个数组来记录出现的key,若对象中所有key对应的表达式都发生替换即appear_prop_list.length === objPropertiesList.length 才删除节点，避免有用对象误删
+    var appear_prop_list = [];
+    console.log("PropertiesListLength",objPropertiesList.length);
     objPropertiesList.forEach(prop => {
         var key = prop.key.value;
         if(t.isFunctionExpression(prop.value))
@@ -252,7 +254,7 @@ function callToStr(path) {
                     {
                         _path.replaceWith(t.callExpression(args[0], args.slice(1)))
                     }
-                    del_flag = true;
+                    appear_prop_list.push(key);
                 }
             })
         }
@@ -274,12 +276,15 @@ function callToStr(path) {
                     //     return;
 
                     _path.replaceWith(t.stringLiteral(retStmt))
-                    del_flag = true;
+                    appear_prop_list.push(key)
                 }
             })
         }
     });
-    if (del_flag) {
+    // 去重
+    appear_prop_list = Array.from(new Set(appear_prop_list));
+    console.log('appear_prop_list_length',appear_prop_list.length)
+    if (appear_prop_list.length === objPropertiesList.length) {
         // 如果发生替换，则删除该对象
         path.remove();
     } 
