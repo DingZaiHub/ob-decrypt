@@ -113,7 +113,6 @@ function step2(ast) {
     // 返回解密后的ast对象或写入还原后的代码
     console.log("还原解密函数中...")
     // 利用eval将前3个节点的代码导入到环境中
-    eval("var encode_version = 'jsjiami.com.v5', jpnjj = '__0x9d15a'")
     eval(global_code)
     traverse(ast, {
         CallExpression: funToStr,
@@ -548,4 +547,31 @@ function removeUselessBranch(path) {
             path.replaceInline(alternate)
         }
     }
+}
+
+
+function var2str(path) {
+    // 在表达式中替换变量定义的常量
+    var node = path.node;
+    if (!t.isStringLiteral(node.init))
+        return;
+    var identifierName = node.id.name;
+    var varValue = node.init.value;
+    var fnPath = path.getFunctionParent();
+
+    fnPath.traverse({
+        Identifier: function (_path) {
+            var _node = _path.node;
+            if (!t.isIdentifier(_node) || _node.name !== identifierName)
+                return;
+            // parentPath 是BinaryExpression
+            if (!t.isBinaryExpression(_path.parentPath.node))
+                return;
+
+            var {code} = generator(_path.parentPath.node);
+            console.log(code);
+            _path.replaceWith(t.stringLiteral(varValue))
+            
+        }
+    })
 }
