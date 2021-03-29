@@ -39,7 +39,7 @@ if (!config.only_decrypt) {
     if (config.trans) {
         traverse(ast, {MemberExpression: formatMember,});       // 修改调用方式，如aa['bb']['v']()转aa.bb.v()，慎用！
     }
-    
+
     // traverse(ast, {ExpressionStatement: delConvParam,})      // 替换空参数的自执行方法为顺序语句，慎用！
 
     // 代码生成
@@ -59,12 +59,12 @@ if (!config.only_decrypt) {
 
 function step1(ast) {
     // 提取前3个节点的源代码及单独提取出atob函数，返回去掉前3个节点后的ast对象
-    
+
     // 提取program.body下前3个节点，即提取出解密代码
     var decrypt_code = ast.program.body.slice(0, 3)
     // 剩下的节点
     var rest_code = ast.program.body.slice(3)
-    
+
     // 将前3个节点替换进ast
     ast.program.body = decrypt_code
     var {code} = generator(ast, {
@@ -138,7 +138,7 @@ function step2(ast) {
     function funToStr(path) {
         var node = path.node;
         // 判断节点类型及函数名，不是则返回
-        if (!t.isIdentifier(node.callee, {name: decryptStr})) 
+        if (!t.isIdentifier(node.callee, {name: decryptStr}))
             return;
         // 调用解密函数
         let value = eval(path.toString())
@@ -148,9 +148,9 @@ function step2(ast) {
         }
         path.replaceWith(t.valueToNode(value));
     }
-    function delExtra(path) {     
+    function delExtra(path) {
         // 十六进制文本还原
-        delete path.node.extra; 
+        delete path.node.extra;
     }
 }
 function merge_obj(path) {
@@ -169,7 +169,7 @@ function merge_obj(path) {
     }
     let paths = binding.referencePaths;
     paths.map(function(refer_path) {
-        let bindpath = refer_path.parentPath; 
+        let bindpath = refer_path.parentPath;
         if (!t.isVariableDeclarator(bindpath.node)) return;
         let bindname = bindpath.node.id.name;
         bindpath.scope.rename(bindname, name, bindpath.scope.block);
@@ -282,7 +282,7 @@ function callToStr(path) {
     if (del_flag) {
         // 如果发生替换，则删除该对象
         path.remove();
-    } 
+    }
 }
 function convParam(path) {
     // 自执行函数实参替换形参
@@ -315,28 +315,28 @@ function convParam(path) {
     node.expression.callee.params = [];
 }
 function replaceWhile(path) {
-    // 反控制流平坦化    
-    var node = path.node;   
-    // 判断是否是目标节点   
-    if (!(t.isBooleanLiteral(node.test) || t.isUnaryExpression(node.test)))  
+    // 反控制流平坦化
+    var node = path.node;
+    // 判断是否是目标节点
+    if (!(t.isBooleanLiteral(node.test) || t.isUnaryExpression(node.test)))
         // 如果while中不为true或!![]
-        return;    
+        return;
     if (!(node.test.prefix || node.test.value))
         // 如果while中的值不为true
         return;
-    if (!t.isBlockStatement(node.body))         
-        return;               
-    var body = node.body.body;     
-    if (!t.isSwitchStatement(body[0]) || !t.isMemberExpression(body[0].discriminant) || !t.isBreakStatement(body[1]))         
-        return;     
-        
-    // 获取数组名及自增变量名
-    var swithStm = body[0];     
-    var arrName = swithStm.discriminant.object.name;    
-    var argName = swithStm.discriminant.property.argument.name
-    let arr = [];  
+    if (!t.isBlockStatement(node.body))
+        return;
+    var body = node.body.body;
+    if (!t.isSwitchStatement(body[0]) || !t.isMemberExpression(body[0].discriminant) || !t.isBreakStatement(body[1]))
+        return;
 
-    // 找到path节点的前一个兄弟节点，即数组所在的节点，然后获取数组  
+    // 获取数组名及自增变量名
+    var swithStm = body[0];
+    var arrName = swithStm.discriminant.object.name;
+    var argName = swithStm.discriminant.property.argument.name
+    let arr = [];
+
+    // 找到path节点的前一个兄弟节点，即数组所在的节点，然后获取数组
     let all_presibling = path.getAllPrevSiblings();
     // console.log(all_presibling)
     all_presibling.forEach(pre_path => {
@@ -352,17 +352,17 @@ function replaceWhile(path) {
             pre_path.remove()
         }
     })
-            
-    // SwitchCase节点集合     
-    var caseList = swithStm.cases;  
-    // 存放按正确顺序取出的case节点   
-    var resultBody = [];           
-    arr.map(targetIdx => {     
-        var targetBody = caseList[targetIdx].consequent;     
-        // 删除ContinueStatement块(continue语句)     
-        if (t.isContinueStatement(targetBody[targetBody.length - 1]))         
-            targetBody.pop();     
-        resultBody = resultBody.concat(targetBody)     
+
+    // SwitchCase节点集合
+    var caseList = swithStm.cases;
+    // 存放按正确顺序取出的case节点
+    var resultBody = [];
+    arr.map(targetIdx => {
+        var targetBody = caseList[targetIdx].consequent;
+        // 删除ContinueStatement块(continue语句)
+        if (t.isContinueStatement(targetBody[targetBody.length - 1]))
+            targetBody.pop();
+        resultBody = resultBody.concat(targetBody)
     });
     path.replaceInline(resultBody);
 }
@@ -471,11 +471,11 @@ function callToStr1(path) {
 
     let name = id.name;
     let scope = path.scope;
-    
+
     for (const property of init.properties) {
         let key   = property.key.value;
         let value = property.value;
-        
+
         if (t.isLiteral(value)) {
             scope.traverse(scope.block,{
                 MemberExpression(_path) {
@@ -492,10 +492,10 @@ function callToStr1(path) {
                 CallExpression: function(_path) {
                     let {callee,arguments} = _path.node;
                     if (!t.isMemberExpression(callee)) return;
-                    
+
                     if (!t.isIdentifier(callee.object,{name:name})) return;
                     if (!t.isLiteral(callee.property, {value:key})) return;
-                    
+
                     if (t.isCallExpression(ret_state.argument) && arguments.length > 0) {
                         _path.replaceWith(t.CallExpression(arguments[0], arguments.slice(1)));
                     } else if (t.isBinaryExpression(ret_state.argument) && arguments.length === 2) {
@@ -510,17 +510,33 @@ function callToStr1(path) {
         }
     }
 }
-function delConvParam(path) {   
-    // 替换空参数的自执行方法为顺序语句   
-    let node = path.node;         
-    // 判断条件是否符合         
-    if (!t.isCallExpression(node.expression))             
-        return;         
-    if (node.expression.arguments !== undefined && node.expression.arguments.length > 0)             
-        return;         
-    if (!t.isFunctionExpression(node.expression.callee))             
-        return;         
-        // 替换节点         
-    path.replaceWith(node.expression.callee.body);     
+function delConvParam(path) {
+    // 替换空参数的自执行方法为顺序语句
+    let node = path.node;
+    // 判断条件是否符合
+    if (!t.isCallExpression(node.expression))
+        return;
+    if (node.expression.arguments !== undefined && node.expression.arguments.length > 0)
+        return;
+    if (!t.isFunctionExpression(node.expression.callee))
+        return;
+        // 替换节点
+    path.replaceWith(node.expression.callee.body);
 }
 
+// disable strict mode
+function removeStrictMode(path) {
+  var list = path.node.directives;
+  for (var i = list.length - 1, it; i >= 0; i--) {
+    it = list[i];
+    if (it.value.value === 'use strict') {
+      list.splice(i, 1);
+    }
+  }
+}
+
+// convert const declaration to var declaration
+function constToVar(path) {
+  const node = path.node;
+  if (node && node.kind === 'const') node.kind = 'var'
+}
