@@ -1,6 +1,6 @@
 var config = {
     // 要还原的代码路径
-    file2decrypt: "./55fbdbe5.js",
+    file2decrypt: "./source.js",
     // 仅将解密函数还原，其它不还原。如仅还原_0x5323("0x1a", ")^7H")。true为仅还原解密函数
     only_decrypt: false,
     // 开启打印解密函数还原过程的开关，true为打开，false关闭

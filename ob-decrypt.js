@@ -18,28 +18,28 @@ ast = step1(ast)
 ast = step2(ast)
 if (!config.only_decrypt) {
     // 将拆分的对象重新合并、对象替换、自执行实参替换形参，返回替换后的ast对象
-    traverse(ast, {VariableDeclarator: {exit: [merge_obj]},});  // 将拆分的对象重新合并
+    traverse(ast, { VariableDeclarator: { exit: [merge_obj] }, });  // 将拆分的对象重新合并
     console.log("开始对象替换，可能稍慢，请耐心等待...");
-    traverse(ast, {VariableDeclarator: {exit: [callToStr]},});  // 对象替换
-    traverse(ast, {ExpressionStatement: convParam,});           // 自执行实参替换形参
-    traverse(ast, {WhileStatement: {exit: [replaceWhile]},});   // 反控制流平坦化
-    traverse(ast, {ConditionalExpression: trans_condition,});   // 把 a = m?11:22; 转成 m ? a = 11 : a = 22;
-    traverse(ast, {ExpressionStatement: remove_comma,});        // 去除逗号表达式
+    traverse(ast, { VariableDeclarator: { exit: [callToStr] }, });  // 对象替换
+    traverse(ast, { ExpressionStatement: convParam, });           // 自执行实参替换形参
+    traverse(ast, { WhileStatement: { exit: [replaceWhile] }, });   // 反控制流平坦化
+    traverse(ast, { ConditionalExpression: trans_condition, });   // 把 a = m?11:22; 转成 m ? a = 11 : a = 22;
+    traverse(ast, { ExpressionStatement: remove_comma, });        // 去除逗号表达式
     if (config.trans_var) {
-        traverse(ast, {VariableDeclaration: remove_var_comma,});    // 去除var定义的逗号表达式
-        traverse(ast, {VariableDeclarator: conditionVarToIf,});     // var定义的三元表达式转if-else
+        traverse(ast, { VariableDeclaration: remove_var_comma, });    // 去除var定义的逗号表达式
+        traverse(ast, { VariableDeclarator: conditionVarToIf, });     // var定义的三元表达式转if-else
     }
-    traverse(ast, {ExpressionStatement: ConditionToIf,});       // 三元表达式转if-else
-
+    traverse(ast, { ExpressionStatement: ConditionToIf, });       // 三元表达式转if-else
+    traverse(ast, { IfStatement: removeUselessBranch, });       // 去除垃圾代码——if表达式中永远不会执行到的部分       
     if (config.eval) {
         traverse(ast, {                                         // 常量计算，慎用！
             "UnaryExpression|BinaryExpression|ConditionalExpression|CallExpression": eval_constant,
         });
     }
     if (config.trans) {
-        traverse(ast, {MemberExpression: formatMember,});       // 修改调用方式，如aa['bb']['v']()转aa.bb.v()，慎用！
+        traverse(ast, { MemberExpression: formatMember, });       // 修改调用方式，如aa['bb']['v']()转aa.bb.v()，慎用！
     }
-    
+
     // traverse(ast, {ExpressionStatement: delConvParam,})      // 替换空参数的自执行方法为顺序语句，慎用！
 
     // 代码生成
@@ -59,15 +59,15 @@ if (!config.only_decrypt) {
 
 function step1(ast) {
     // 提取前3个节点的源代码及单独提取出atob函数，返回去掉前3个节点后的ast对象
-    
+
     // 提取program.body下前3个节点，即提取出解密代码
     var decrypt_code = ast.program.body.slice(0, 3)
     // 剩下的节点
     var rest_code = ast.program.body.slice(3)
-    
+
     // 将前3个节点替换进ast
     ast.program.body = decrypt_code
-    var {code} = generator(ast, {
+    var { code } = generator(ast, {
         // 禁止自动格式化(针对反调试)
         compact: true
     })
@@ -95,7 +95,7 @@ function step1(ast) {
     }
     traverse(ast, visitor)
     ast.program.body = [atob_node]
-    var {code} = generator(ast, {
+    var { code } = generator(ast, {
         jsescOption: {
             // 自动转义
             minimal: true,
@@ -138,7 +138,7 @@ function step2(ast) {
     function funToStr(path) {
         var node = path.node;
         // 判断节点类型及函数名，不是则返回
-        if (!t.isIdentifier(node.callee, {name: decryptStr})) 
+        if (!t.isIdentifier(node.callee, { name: decryptStr }))
             return;
         // 调用解密函数
         let value = eval(path.toString())
@@ -148,14 +148,14 @@ function step2(ast) {
         }
         path.replaceWith(t.valueToNode(value));
     }
-    function delExtra(path) {     
+    function delExtra(path) {
         // 十六进制文本还原
-        delete path.node.extra; 
+        delete path.node.extra;
     }
 }
 function merge_obj(path) {
     // 将拆分的对象重新合并
-    const {id, init} = path.node;
+    const { id, init } = path.node;
     if (!t.isObjectExpression(init))
         return;
 
@@ -168,26 +168,26 @@ function merge_obj(path) {
         return;
     }
     let paths = binding.referencePaths;
-    paths.map(function(refer_path) {
-        let bindpath = refer_path.parentPath; 
+    paths.map(function (refer_path) {
+        let bindpath = refer_path.parentPath;
         if (!t.isVariableDeclarator(bindpath.node)) return;
         let bindname = bindpath.node.id.name;
         bindpath.scope.rename(bindname, name, bindpath.scope.block);
         bindpath.remove();
     });
     scope.traverse(scope.block, {
-        AssignmentExpression: function(_path) {
+        AssignmentExpression: function (_path) {
             const left = _path.get("left");
             const right = _path.get("right");
             if (!left.isMemberExpression())
                 return;
             const object = left.get("object");
             const property = left.get("property");
-            if (object.isIdentifier({name: name}) && property.isStringLiteral() && _path.scope == scope) {
+            if (object.isIdentifier({ name: name }) && property.isStringLiteral() && _path.scope == scope) {
                 properties.push(t.ObjectProperty(t.valueToNode(property.node.value), right.node));
                 _path.remove();
             }
-            if (object.isIdentifier({name: name}) && property.isIdentifier() && _path.scope == scope) {
+            if (object.isIdentifier({ name: name }) && property.isIdentifier() && _path.scope == scope) {
                 properties.push(t.ObjectProperty(t.valueToNode(property.node.name), right.node));
                 _path.remove();
             }
@@ -204,18 +204,19 @@ function callToStr(path) {
     // 获取对象内所有属性
     var objPropertiesList = node.init.properties;
 
-    if (objPropertiesList.length==0)
+    if (objPropertiesList.length == 0)
         return;
 
     // 对象名
     var objName = node.id.name;
     // 是否可删除该对象：发生替换时可删除，否则不删除
-    var del_flag = false
-
+    // var del_flag = false
+    // 定义一个数组来记录出现的key,若对象中所有key对应的表达式都发生替换即appear_prop_list.length === objPropertiesList.length 才删除节点，避免有用对象误删
+    var appear_prop_list = [];
+    console.log("PropertiesListLength", objPropertiesList.length);
     objPropertiesList.forEach(prop => {
         var key = prop.key.value;
-        if(t.isFunctionExpression(prop.value))
-        {
+        if (t.isFunctionExpression(prop.value)) {
             var retStmt = prop.value.body.body[0];
 
             // 该path的最近父节点
@@ -238,31 +239,28 @@ function callToStr(path) {
                     var args = _path.node.arguments;
 
                     // 二元运算
-                    if (t.isBinaryExpression(retStmt.argument) && args.length===2)
-                    {
+                    if (t.isBinaryExpression(retStmt.argument) && args.length === 2) {
                         _path.replaceWith(t.binaryExpression(retStmt.argument.operator, args[0], args[1]));
                     }
                     // 逻辑运算
-                    else if(t.isLogicalExpression(retStmt.argument) && args.length==2)
-                    {
+                    else if (t.isLogicalExpression(retStmt.argument) && args.length == 2) {
                         _path.replaceWith(t.logicalExpression(retStmt.argument.operator, args[0], args[1]));
                     }
                     // 函数调用
-                    else if(t.isCallExpression(retStmt.argument) && t.isIdentifier(retStmt.argument.callee))
-                    {
+                    else if (t.isCallExpression(retStmt.argument) && t.isIdentifier(retStmt.argument.callee)) {
                         _path.replaceWith(t.callExpression(args[0], args.slice(1)))
                     }
-                    del_flag = true;
+                    appear_prop_list.push(key);
                 }
             })
         }
-        else if (t.isStringLiteral(prop.value)){
+        else if (t.isStringLiteral(prop.value)) {
             var retStmt = prop.value.value;
 
             // 该path的最近父节点
             var fnPath = path.getFunctionParent();
             fnPath.traverse({
-                MemberExpression:function (_path) {
+                MemberExpression: function (_path) {
                     var _node = _path.node;
                     if (!t.isIdentifier(_node.object) || _node.object.name !== objName)
                         return;
@@ -274,15 +272,18 @@ function callToStr(path) {
                     //     return;
 
                     _path.replaceWith(t.stringLiteral(retStmt))
-                    del_flag = true;
+                    appear_prop_list.push(key)
                 }
             })
         }
     });
-    if (del_flag) {
+    // 去重
+    appear_prop_list = Array.from(new Set(appear_prop_list));
+    console.log('appear_prop_list_length', appear_prop_list.length)
+    if (appear_prop_list.length === objPropertiesList.length) {
         // 如果发生替换，则删除该对象
         path.remove();
-    } 
+    }
 }
 function convParam(path) {
     // 自执行函数实参替换形参
@@ -296,13 +297,12 @@ function convParam(path) {
 
     var argumentList = node.expression.arguments;
     var paramList = node.expression.callee.params;
-    for (var i = 0; i<argumentList.length; i++)
-    {
+    for (var i = 0; i < argumentList.length; i++) {
         var argumentName = argumentList[i].name;
         var paramName = paramList[i].name;
 
         path.traverse({
-            MemberExpression:function (_path) {
+            MemberExpression: function (_path) {
                 var _node = _path.node;
                 if (!t.isIdentifier(_node.object) || _node.object.name !== paramName)
                     return;
@@ -316,32 +316,32 @@ function convParam(path) {
 }
 function replaceWhile(path) {
     // 反控制流平坦化    
-    var node = path.node;   
+    var node = path.node;
     // 判断是否是目标节点   
-    if (!(t.isBooleanLiteral(node.test) || t.isUnaryExpression(node.test)))  
+    if (!(t.isBooleanLiteral(node.test) || t.isUnaryExpression(node.test)))
         // 如果while中不为true或!![]
-        return;    
+        return;
     if (!(node.test.prefix || node.test.value))
         // 如果while中的值不为true
         return;
-    if (!t.isBlockStatement(node.body))         
-        return;               
-    var body = node.body.body;     
-    if (!t.isSwitchStatement(body[0]) || !t.isMemberExpression(body[0].discriminant) || !t.isBreakStatement(body[1]))         
-        return;     
-        
+    if (!t.isBlockStatement(node.body))
+        return;
+    var body = node.body.body;
+    if (!t.isSwitchStatement(body[0]) || !t.isMemberExpression(body[0].discriminant) || !t.isBreakStatement(body[1]))
+        return;
+
     // 获取数组名及自增变量名
-    var swithStm = body[0];     
-    var arrName = swithStm.discriminant.object.name;    
+    var swithStm = body[0];
+    var arrName = swithStm.discriminant.object.name;
     var argName = swithStm.discriminant.property.argument.name
-    let arr = [];  
+    let arr = [];
 
     // 找到path节点的前一个兄弟节点，即数组所在的节点，然后获取数组  
     let all_presibling = path.getAllPrevSiblings();
     // console.log(all_presibling)
     all_presibling.forEach(pre_path => {
-        const {declarations} = pre_path.node;
-        let {id, init} = declarations[0]
+        const { declarations } = pre_path.node;
+        let { id, init } = declarations[0]
         if (arrName == id.name) {
             // 数组节点
             arr = init.callee.object.value.split('|');
@@ -352,26 +352,26 @@ function replaceWhile(path) {
             pre_path.remove()
         }
     })
-            
+
     // SwitchCase节点集合     
-    var caseList = swithStm.cases;  
+    var caseList = swithStm.cases;
     // 存放按正确顺序取出的case节点   
-    var resultBody = [];           
-    arr.map(targetIdx => {     
-        var targetBody = caseList[targetIdx].consequent;     
+    var resultBody = [];
+    arr.map(targetIdx => {
+        var targetBody = caseList[targetIdx].consequent;
         // 删除ContinueStatement块(continue语句)     
-        if (t.isContinueStatement(targetBody[targetBody.length - 1]))         
-            targetBody.pop();     
-        resultBody = resultBody.concat(targetBody)     
+        if (t.isContinueStatement(targetBody[targetBody.length - 1]))
+            targetBody.pop();
+        resultBody = resultBody.concat(targetBody)
     });
     path.replaceInline(resultBody);
 }
 function trans_condition(path) {
     // 把 a = m?11:22; 转成 m ? a = 11 : a = 22;
-    let {test, consequent, alternate} = path.node;
+    let { test, consequent, alternate } = path.node;
     const ParentPath = path.parentPath;
     if (ParentPath.isAssignmentExpression()) {
-        let {operator, left} = ParentPath.node;
+        let { operator, left } = ParentPath.node;
         if (operator === "=") {
             consequent = t.AssignmentExpression("=", left, consequent)
             alternate = t.AssignmentExpression("=", left, alternate)
@@ -381,9 +381,9 @@ function trans_condition(path) {
 }
 function ConditionToIf(path) {
     // 三元表达式转if-else
-    let {expression} = path.node;
-    if(!t.isConditionalExpression(expression)) return;
-    let {test, consequent, alternate} = expression;
+    let { expression } = path.node;
+    if (!t.isConditionalExpression(expression)) return;
+    let { test, consequent, alternate } = expression;
     path.replaceWith(t.ifStatement(
         test,
         t.blockStatement([t.expressionStatement(consequent),]),
@@ -392,7 +392,7 @@ function ConditionToIf(path) {
 }
 function conditionVarToIf(path) {
     // var定义的三元表达式转if-else
-    let {id, init} = path.node;
+    let { id, init } = path.node;
     if (!t.isConditionalExpression(init)) return;
 
     const ParentPath = path.parentPath;
@@ -402,7 +402,7 @@ function conditionVarToIf(path) {
     if (t.isForStatement(ParentPath.parentPath)) return;
 
     let kind = ParentNode.kind;
-    let {test, consequent, alternate} = init;
+    let { test, consequent, alternate } = init;
     ParentPath.replaceWith(t.ifStatement(
         test,
         t.blockStatement([t.variableDeclaration(kind, [t.variableDeclarator(id, consequent)]),]),
@@ -411,7 +411,7 @@ function conditionVarToIf(path) {
 }
 function remove_comma(path) {
     // 去除逗号表达式
-    let {expression} = path.node
+    let { expression } = path.node
     if (!t.isSequenceExpression(expression))
         return;
     let body = []
@@ -424,7 +424,7 @@ function remove_comma(path) {
 }
 function remove_var_comma(path) {
     // 去除var定义的逗号表达式
-    let {kind, declarations} = path.node;
+    let { kind, declarations } = path.node;
     if (declarations.length < 2) return;
 
     // 如果在for循环中，则不处理
@@ -443,9 +443,9 @@ function remove_var_comma(path) {
 function formatMember(path) {
     // 将_0x19882c['removeCookie']['toString']()改成_0x19882c.removeCookie.toString()
     var curNode = path.node;
-    if(!t.isStringLiteral(curNode.property))
+    if (!t.isStringLiteral(curNode.property))
         return;
-    if(curNode.computed === undefined || !curNode.computed === true)
+    if (curNode.computed === undefined || !curNode.computed === true)
         return;
     curNode.property = t.identifier(curNode.property.value);
     curNode.computed = false;
@@ -453,12 +453,12 @@ function formatMember(path) {
 function eval_constant(path) {
     // 常量计算
     if (path.type == "UnaryExpression") {
-        const {operator, argument} = path.node;
+        const { operator, argument } = path.node;
         if (operator == "-" && t.isLiteral(argument)) {
             return;
         }
     }
-    const {confident, value} = path.evaluate();
+    const { confident, value } = path.evaluate();
     // 无限计算则退出，如1/0与-(1/0)
     if (value == Infinity || value == -Infinity)
         return;
@@ -466,36 +466,36 @@ function eval_constant(path) {
 }
 
 function callToStr1(path) {
-    const {id,init} = path.node;
+    const { id, init } = path.node;
     if (!t.isObjectExpression(init) || init.properties.length == 0) return;
 
     let name = id.name;
     let scope = path.scope;
-    
+
     for (const property of init.properties) {
-        let key   = property.key.value;
+        let key = property.key.value;
         let value = property.value;
-        
+
         if (t.isLiteral(value)) {
-            scope.traverse(scope.block,{
+            scope.traverse(scope.block, {
                 MemberExpression(_path) {
                     let _node = _path.node;
-                    if (!t.isIdentifier(_node.object,{name:name})) return;
-                    if (!t.isLiteral(_node.property, {value:key})) return;
+                    if (!t.isIdentifier(_node.object, { name: name })) return;
+                    if (!t.isLiteral(_node.property, { value: key })) return;
                     _path.replaceWith(value);
                 },
             })
         } else if (t.isFunctionExpression(value)) {
             let ret_state = value.body.body[0];
-            if(!t.isReturnStatement(ret_state)) continue;
+            if (!t.isReturnStatement(ret_state)) continue;
             scope.traverse(scope.block, {
-                CallExpression: function(_path) {
-                    let {callee,arguments} = _path.node;
+                CallExpression: function (_path) {
+                    let { callee, arguments } = _path.node;
                     if (!t.isMemberExpression(callee)) return;
-                    
-                    if (!t.isIdentifier(callee.object,{name:name})) return;
-                    if (!t.isLiteral(callee.property, {value:key})) return;
-                    
+
+                    if (!t.isIdentifier(callee.object, { name: name })) return;
+                    if (!t.isLiteral(callee.property, { value: key })) return;
+
                     if (t.isCallExpression(ret_state.argument) && arguments.length > 0) {
                         _path.replaceWith(t.CallExpression(arguments[0], arguments.slice(1)));
                     } else if (t.isBinaryExpression(ret_state.argument) && arguments.length === 2) {
@@ -510,17 +510,68 @@ function callToStr1(path) {
         }
     }
 }
-function delConvParam(path) {   
+function delConvParam(path) {
     // 替换空参数的自执行方法为顺序语句   
-    let node = path.node;         
+    let node = path.node;
     // 判断条件是否符合         
-    if (!t.isCallExpression(node.expression))             
-        return;         
-    if (node.expression.arguments !== undefined && node.expression.arguments.length > 0)             
-        return;         
-    if (!t.isFunctionExpression(node.expression.callee))             
-        return;         
-        // 替换节点         
-    path.replaceWith(node.expression.callee.body);     
+    if (!t.isCallExpression(node.expression))
+        return;
+    if (node.expression.arguments !== undefined && node.expression.arguments.length > 0)
+        return;
+    if (!t.isFunctionExpression(node.expression.callee))
+        return;
+    // 替换节点         
+    path.replaceWith(node.expression.callee.body);
+}
+function removeUselessBranch(path) {
+    // 去除垃圾代码
+    let node = path.node;
+    if (!t.isLiteral(node.test) && !t.isBinaryExpression(node.test)) return;
+    if (t.isBinaryExpression(node.test)) {
+        let { left, right } = node.test;
+        if (!t.isLiteral(left) || !t.isLiteral(right)) return;
+        let { code } = generator(node.test);
+        if (eval(code)) {
+            let consequent = node.consequent.body;
+            path.replaceInline(consequent)
+        } else {
+            let alternate = node.alternate.body;
+            path.replaceInline(alternate)
+        }
+    } else {
+        if (node.test) {
+            let consequent = node.consequent.body;
+            path.replaceInline(consequent)
+        } else {
+            let alternate = node.alternate.body;
+            path.replaceInline(alternate)
+        }
+    }
 }
 
+
+function var2str(path) {
+    // 在表达式中替换变量定义的常量
+    var node = path.node;
+    if (!t.isStringLiteral(node.init))
+        return;
+    var identifierName = node.id.name;
+    var varValue = node.init.value;
+    var fnPath = path.getFunctionParent();
+
+    fnPath.traverse({
+        Identifier: function (_path) {
+            var _node = _path.node;
+            if (!t.isIdentifier(_node) || _node.name !== identifierName)
+                return;
+            // parentPath 是BinaryExpression
+            if (!t.isBinaryExpression(_path.parentPath.node))
+                return;
+
+            var {code} = generator(_path.parentPath.node);
+            console.log(code);
+            _path.replaceWith(t.stringLiteral(varValue))
+            
+        }
+    })
+}
