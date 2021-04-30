@@ -12,6 +12,8 @@
     - [10. 常量计算](#10-常量计算)
     - [11. 修改调用方式](#11-修改调用方式)
     - [12. 替换空参数的自执行函数为顺序语句](#12-替换空参数的自执行函数为顺序语句)
+    - [13. 去除严格模式](#13-去除严格模式)
+    - [14. 将 const 声明转为 var 声明](#14-将-const-声明转为-var-声明)
 
 ### 1. 将拆分的对象重新合并
 ```javascript
@@ -256,4 +258,30 @@ traverse(ast, {ExpressionStatement: delConvParam,});
 ```javascript
 b = 123;
 c = 456;
+```
+
+### 13. 去除严格模式
+
+在严格模式下 eval 无法得到 var 声明的值到global作用域.
+
+```js
+  traverse(ast, {
+    // disable strict mode
+    Program: { exit: [removeStrictMode] },
+  })
+```
+
+### 14. 将 const 声明转为 var 声明
+
+在严格模式下 eval 无法得到 const 声明的值到global作用域.
+
+```javascript
+  var decrypt_code = ast.program.body.slice(0, 4)
+  // 剩下的节点
+  var rest_code = ast.program.body.slice(4)
+  // 将前4个节点替换进ast
+  ast.program.body = decrypt_code
+
+  // constToVar 把 const 声明 变为 var 声明, 因为 eval 无法把const 声明带到global
+  traverse(ast, {VariableDeclaration:constToVar});
 ```
